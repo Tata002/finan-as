@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>Administração | Finanças do Mês</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell admin-page-shell">
+      <aside class="sidebar" aria-label="Navegação da administração">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">F</div>
+          <div>
+            <strong>Finanças</strong>
+            <span>Administração</span>
+          </div>
+        </div>
+
+        <nav class="menu" aria-label="Seções">
+          <a href="index.html" class="menu-link" id="adminBackButton">Voltar ao app</a>
+          <a href="#administracao" class="menu-link active">Administração</a>
+        </nav>
+
+        <div class="sidebar-card">
+          <span>Master</span>
+          <strong id="adminUserName">tata</strong>
+          <small>Somente o login master pode aprovar, bloquear e excluir contas.</small>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Painel separado</p>
+            <h1>Administração</h1>
+          </div>
+          <div class="topbar-actions">
+            <div class="user-pill">
+              <span id="adminStatus">Verificando acesso...</span>
+              <button class="button text small" id="adminLogoutButton" type="button">Sair</button>
+            </div>
+          </div>
+        </header>
+
+        <section class="panel" id="adminAccessWarning" hidden>
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Acesso restrito</p>
+              <h2>Entre como master tata</h2>
+            </div>
+          </div>
+          <p class="muted admin-help" id="adminAccessMessage">
+            Abra o app principal, entre com o usuário tata e depois volte para esta aba.
+          </p>
+          <div class="admin-actions" style="justify-content:flex-start; margin-top:18px;">
+            <a class="button primary" href="index.html">Abrir app principal</a>
+          </div>
+        </section>
+
+        <section class="panel admin-panel" id="administracao" hidden>
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Administração</p>
+              <h2>Contas cadastradas</h2>
+            </div>
+            <button class="button secondary" id="refreshUsersButton" type="button">Atualizar lista</button>
+          </div>
+
+          <p class="muted admin-help">
+            Aqui o master tata aprova cadastros pendentes, cria contas já liberadas, bloqueia contas ou remove definitivamente os dados do Firestore.
+          </p>
+
+          <form id="adminCreateUserForm" class="transaction-form compact-form admin-create-form" autocomplete="off">
+            <label class="field">
+              <span>Novo usuário</span>
+              <input id="adminNewUserName" type="text" placeholder="Ex.: Maria" minlength="3" maxlength="60" />
+            </label>
+            <label class="field">
+              <span>Senha inicial</span>
+              <input id="adminNewUserPassword" type="password" placeholder="Mínimo de 6 caracteres" minlength="6" />
+            </label>
+            <button class="button primary wide" id="adminCreateUserButton" type="submit">Criar conta já liberada</button>
+          </form>
+
+          <div class="admin-summary" id="adminSummary"></div>
+          <div class="admin-users-list" id="adminUsersList">
+            <p class="muted">Carregando contas...</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="./firebase-config.js"></script>
+    <script src="./admin.js"></script>
+  </body>
+</html>

@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>Finanças do Mês</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <section class="auth-screen" id="authScreen">
+      <div class="auth-card">
+        <div class="brand auth-brand">
+          <div class="brand-mark" aria-hidden="true">F</div>
+          <div>
+            <strong>Finanças</strong>
+            <span>Controle mensal com Firebase</span>
+          </div>
+        </div>
+        <p class="eyebrow">Acesso seguro</p>
+        <h1>Entre na sua conta</h1>
+        <p class="auth-copy">Use nome e senha. Novas contas entram como pendentes e só são liberadas pelo administrador tata.</p>
+
+        <form id="authForm" class="auth-form" autocomplete="on">
+          <label class="field">
+            <span>Nome de usuário</span>
+            <input id="authName" type="text" placeholder="Ex.: Ricardo" autocomplete="username" required minlength="3" />
+          </label>
+          <label class="field">
+            <span>Senha</span>
+            <input id="authPassword" type="password" placeholder="Mínimo de 6 caracteres" autocomplete="current-password" required minlength="6" />
+          </label>
+          <button class="button primary wide" id="loginButton" type="submit">Entrar</button>
+          <button class="button secondary wide" id="registerButton" type="button">Solicitar cadastro</button>
+          <p class="muted auth-admin-note">Depois de solicitar cadastro, aguarde a aprovação do administrador.</p>
+        </form>
+
+        <div class="setup-warning" id="firebaseWarning" hidden>
+          Configure o arquivo <strong>firebase-config.js</strong> com os dados do seu projeto Firebase antes de usar login e banco de dados.
+        </div>
+      </div>
+    </section>
+
+    <div class="app-shell" id="appShell" hidden>
+      <aside class="sidebar" aria-label="Navegação principal">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">F</div>
+          <div>
+            <strong>Finanças</strong>
+            <span>Controle mensal</span>
+          </div>
+        </div>
+
+        <nav class="menu" aria-label="Seções">
+          <a href="#dashboard" class="menu-link active">Dashboard</a>
+          <a href="#lancamentos" class="menu-link">Lançamentos</a>
+          <a href="#planejamento" class="menu-link">Planejamento</a>
+          <a href="#despesas-fixas" class="menu-link">Despesas fixas</a>
+          <a href="#metas" class="menu-link">Metas</a>
+          <a href="admin.html" class="menu-link admin-only" id="adminMenuLink" hidden>Administração</a>
+          <a href="#relatorios" class="menu-link">Relatórios</a>
+        </nav>
+
+        <div class="sidebar-card">
+          <span>Meta do mês</span>
+          <strong id="sidebarBudget">R$ 0,00</strong>
+          <small>Defina um limite para acompanhar seus gastos.</small>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Organização financeira pessoal</p>
+            <h1>Resumo do mês</h1>
+          </div>
+          <div class="topbar-actions">
+            <div class="user-pill">
+              <span id="userEmail">Conta conectada</span>
+              <button class="button text small" id="logoutButton" type="button">Sair</button>
+            </div>
+            <label class="field compact">
+              <span>Mês</span>
+              <input type="month" id="monthFilter" />
+            </label>
+          </div>
+        </header>
+
+        <section class="summary-grid" id="dashboard" aria-label="Resumo financeiro">
+          <article class="summary-card primary">
+            <span>Saldo do mês</span>
+            <strong id="balanceValue">R$ 0,00</strong>
+            <small id="balanceHint">Receitas menos despesas</small>
+          </article>
+          <article class="summary-card">
+            <span>Recebido</span>
+            <strong id="incomeValue">R$ 0,00</strong>
+            <small>Entradas registradas</small>
+          </article>
+          <article class="summary-card danger">
+            <span>Gastos</span>
+            <strong id="expenseValue">R$ 0,00</strong>
+            <small>Despesas do mês</small>
+          </article>
+          <article class="summary-card">
+            <span>Disponível por dia</span>
+            <strong id="dailyValue">R$ 0,00</strong>
+            <small id="dailyHint">Com base no limite do mês</small>
+          </article>
+        </section>
+
+        <section class="panel payment-center" id="central-pendencias" aria-label="Central de pendências">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Controle de pagamentos</p>
+              <h2>Central de Pendências</h2>
+            </div>
+            <span class="status-pill status-pending" id="paymentCenterMonthLabel">Mês selecionado</span>
+          </div>
+          <p class="muted payment-center-help">
+            Veja contas atrasadas, contas a vencer, últimas parcelas do cartão e o que já foi pago no mês.
+          </p>
+          <div class="payment-alerts" id="paymentCenterList">
+            <p class="muted">Carregando avisos...</p>
+          </div>
+        </section>
+
+        <section class="layout-grid">
+          <article class="panel" id="lancamentos">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Novo registro</p>
+                <h2 id="formTitle">Adicionar lançamento</h2>
+              </div>
+              <button class="button text" id="cancelEditButton" type="button" hidden>Cancelar edição</button>
+            </div>
+
+            <form id="transactionForm" class="transaction-form" autocomplete="off">
+              <input type="hidden" id="editingId" />
+              <label class="field">
+                <span>Tipo</span>
+                <select id="typeInput" required>
+                  <option value="income">Receita</option>
+                  <option value="expense">Despesa</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Descrição</span>
+                <input id="titleInput" type="text" placeholder="Ex.: mercado, salário, Uber" required maxlength="80" />
+              </label>
+              <label class="field">
+                <span>Categoria</span>
+                <select id="categoryInput" required></select>
+              </label>
+              <label class="field">
+                <span>Valor</span>
+                <input id="amountInput" type="number" min="0.01" step="0.01" placeholder="0,00" required />
+              </label>
+              <label class="field">
+                <span>Data</span>
+                <input id="dateInput" type="date" required />
+              </label>
+              <label class="field checkbox-field wide">
+                <input id="installmentToggle" type="checkbox" />
+                <span>Compra parcelada no cartão</span>
+              </label>
+              <div class="installment-fields wide" id="installmentFields" hidden>
+                <label class="field">
+                  <span>Total de parcelas</span>
+                  <input id="installmentsInput" type="number" min="2" max="60" step="1" value="2" />
+                </label>
+                <label class="field">
+                  <span>Valor informado é</span>
+                  <select id="installmentAmountMode">
+                    <option value="installment">Valor de cada parcela</option>
+                    <option value="total">Valor total da compra</option>
+                  </select>
+                </label>
+              </div>
+              <label class="field wide">
+                <span>Observação</span>
+                <input id="noteInput" type="text" placeholder="Opcional" maxlength="120" />
+              </label>
+              <button class="button primary wide" id="submitButton" type="submit">Salvar lançamento</button>
+            </form>
+          </article>
+
+          <article class="panel" id="planejamento">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Planejamento</p>
+                <h2>Limite de gastos</h2>
+              </div>
+            </div>
+            <form id="budgetForm" class="budget-form">
+              <label class="field">
+                <span>Quanto quer gastar no mês?</span>
+                <input id="budgetInput" type="number" min="0" step="0.01" placeholder="Ex.: 3000" />
+              </label>
+              <button class="button secondary" type="submit">Atualizar limite</button>
+            </form>
+            <div class="progress-wrap" aria-label="Uso do orçamento">
+              <div class="progress-info">
+                <span>Uso do limite</span>
+                <strong id="budgetPercent">0%</strong>
+              </div>
+              <div class="progress-track">
+                <div class="progress-bar" id="budgetBar"></div>
+              </div>
+              <p id="budgetMessage">Defina um limite para visualizar seu progresso.</p>
+            </div>
+          </article>
+          <article class="panel" id="despesas-fixas">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Automação</p>
+                <h2>Despesas fixas</h2>
+              </div>
+            </div>
+            <form id="fixedExpenseForm" class="transaction-form compact-form" autocomplete="off">
+              <input type="hidden" id="fixedEditingId" />
+              <label class="field">
+                <span>Descrição</span>
+                <input id="fixedTitleInput" type="text" placeholder="Ex.: aluguel, internet" maxlength="80" />
+              </label>
+              <label class="field">
+                <span>Categoria</span>
+                <select id="fixedCategoryInput"></select>
+              </label>
+              <label class="field">
+                <span>Valor</span>
+                <input id="fixedAmountInput" type="number" min="0.01" step="0.01" placeholder="0,00" />
+              </label>
+              <label class="field">
+                <span>Dia do mês</span>
+                <input id="fixedDayInput" type="number" min="1" max="31" step="1" placeholder="Ex.: 5" />
+              </label>
+              <button class="button secondary wide" id="fixedSubmitButton" type="submit">Salvar despesa fixa</button>
+            </form>
+            <div class="mini-list" id="fixedExpenseList"></div>
+          </article>
+
+          <article class="panel" id="metas">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Controle por categoria</p>
+                <h2>Metas do mês</h2>
+              </div>
+            </div>
+            <form id="goalForm" class="budget-form">
+              <label class="field">
+                <span>Categoria</span>
+                <select id="goalCategoryInput"></select>
+              </label>
+              <label class="field">
+                <span>Limite da categoria</span>
+                <input id="goalAmountInput" type="number" min="0" step="0.01" placeholder="Ex.: 800" />
+              </label>
+              <button class="button secondary" type="submit">Salvar meta</button>
+            </form>
+            <div class="goal-list" id="goalList"></div>
+          </article>
+
+        </section>
+
+        <section class="layout-grid reports" id="relatorios">
+          <article class="panel chart-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Relatórios</p>
+                <h2>Gastos por categoria</h2>
+              </div>
+            </div>
+            <div class="chart-area">
+              <div class="donut" id="donutChart" role="img" aria-label="Distribuição de gastos por categoria">
+                <span id="donutCenter">0%</span>
+              </div>
+              <div class="category-list" id="categoryList"></div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Análise</p>
+                <h2>Insights do mês</h2>
+              </div>
+            </div>
+            <div class="insights" id="insightsList"></div>
+          </article>
+        </section>
+
+
+        <section class="panel transactions-panel">
+          <div class="panel-header filters-header">
+            <div>
+              <p class="eyebrow">Histórico</p>
+              <h2>Lançamentos do mês</h2>
+            </div>
+            <div class="filters">
+              <label class="field compact">
+                <span>Buscar</span>
+                <input id="searchInput" type="search" placeholder="Descrição ou categoria" />
+              </label>
+              <label class="field compact">
+                <span>Tipo</span>
+                <select id="typeFilter">
+                  <option value="all">Todos</option>
+                  <option value="income">Receitas</option>
+                  <option value="expense">Despesas</option>
+                </select>
+              </label>
+              <label class="field compact">
+                <span>Pagamento</span>
+                <select id="paymentFilter">
+                  <option value="all">Todos</option>
+                  <option value="pending">Pendentes</option>
+                  <option value="paid">Pagos</option>
+                  <option value="overdue">Atrasados</option>
+                  <option value="installments">Parcelas</option>
+                  <option value="lastInstallment">Última parcela</option>
+                </select>
+              </label>
+              <button class="button danger" id="bulkDeleteButton" type="button" disabled>Excluir selecionados</button>
+            </div>
+          </div>
+
+          <div class="table-wrap" aria-live="polite">
+            <table>
+              <thead>
+                <tr>
+                  <th>
+                    <label class="select-all-control">
+                      <input id="selectAllTransactions" type="checkbox" />
+                      <span>Data</span>
+                    </label>
+                  </th>
+                  <th>Descrição</th>
+                  <th>Categoria</th>
+                  <th>Tipo</th>
+                  <th class="amount-col">Valor</th>
+                  <th class="actions-col">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="transactionsBody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="emptyState" hidden>
+            <strong>Nenhum lançamento encontrado.</strong>
+            <span>Adicione receitas e despesas para começar seu controle mensal.</span>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="./firebase-config.js"></script>
+    <script src="./app.js"></script>
+</body>
+</html>
