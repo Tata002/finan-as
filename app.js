@@ -61,6 +61,7 @@ const elements = {
   logoutButton: document.querySelector("#logoutButton"),
   userEmail: document.querySelector("#userEmail"),
   firebaseWarning: document.querySelector("#firebaseWarning"),
+  appPageTitle: document.querySelector("#appPageTitle"),
   monthFilter: document.querySelector("#monthFilter"),
   transactionForm: document.querySelector("#transactionForm"),
   budgetForm: document.querySelector("#budgetForm"),
@@ -81,6 +82,22 @@ const elements = {
   expenseValue: document.querySelector("#expenseValue"),
   dailyValue: document.querySelector("#dailyValue"),
   dailyHint: document.querySelector("#dailyHint"),
+  todayPlanMonthLabel: document.querySelector("#todayPlanMonthLabel"),
+  todayPlanMainAction: document.querySelector("#todayPlanMainAction"),
+  todayPlanMainDetail: document.querySelector("#todayPlanMainDetail"),
+  todayPlanScore: document.querySelector("#todayPlanScore"),
+  todayPlanScoreLabel: document.querySelector("#todayPlanScoreLabel"),
+  todayPlanScoreBar: document.querySelector("#todayPlanScoreBar"),
+  todayPlanList: document.querySelector("#todayPlanList"),
+  forecastMonthLabel: document.querySelector("#forecastMonthLabel"),
+  forecastStatus: document.querySelector("#forecastStatus"),
+  forecastProjectedBalance: document.querySelector("#forecastProjectedBalance"),
+  forecastCurrentPace: document.querySelector("#forecastCurrentPace"),
+  forecastRecommendedDaily: document.querySelector("#forecastRecommendedDaily"),
+  forecastAlert: document.querySelector("#forecastAlert"),
+  forecastScenarioList: document.querySelector("#forecastScenarioList"),
+  villainsMonthLabel: document.querySelector("#villainsMonthLabel"),
+  villainsList: document.querySelector("#villainsList"),
   sidebarBudget: document.querySelector("#sidebarBudget"),
   budgetPercent: document.querySelector("#budgetPercent"),
   budgetBar: document.querySelector("#budgetBar"),
@@ -125,6 +142,35 @@ const elements = {
   adminSummary: document.querySelector("#adminSummary"),
   adminUsersList: document.querySelector("#adminUsersList"),
 };
+
+const appViews = {
+  inicio: {
+    title: "Resumo do mês",
+    defaultTarget: "dashboard",
+  },
+  diagnostico: {
+    title: "Diagnóstico financeiro",
+    defaultTarget: "viloes-mes",
+  },
+  lancamentos: {
+    title: "Lançamentos",
+    defaultTarget: "lancamentos",
+  },
+  planejamento: {
+    title: "Planejamento",
+    defaultTarget: "planejamento",
+  },
+  pendencias: {
+    title: "Pendências",
+    defaultTarget: "central-pendencias",
+  },
+  relatorios: {
+    title: "Relatórios",
+    defaultTarget: "relatorios",
+  },
+};
+
+let currentView = "inicio";
 
 let app;
 let auth;
@@ -895,12 +941,86 @@ function bindEvents() {
     });
   }
 
-  document.querySelectorAll(".menu-link").forEach((link) => {
-    link.addEventListener("click", () => {
-      document.querySelectorAll(".menu-link").forEach((item) => item.classList.remove("active"));
-      link.classList.add("active");
+  bindViewNavigation();
+}
+
+function bindViewNavigation() {
+  document.querySelectorAll(".menu [data-view]").forEach((link) => {
+    if (link.dataset.navigationBound === "true") return;
+    link.dataset.navigationBound = "true";
+    link.addEventListener("click", (event) => {
+      const view = link.dataset.view;
+      if (!appViews[view]) return;
+      event.preventDefault();
+      const targetId = link.dataset.scrollTarget || appViews[view].defaultTarget;
+      setActiveView(view, targetId, true);
     });
   });
+
+  window.addEventListener("hashchange", () => {
+    const { view, targetId } = getViewFromHash();
+    setActiveView(view, targetId, false);
+  });
+
+  const { view, targetId } = getViewFromHash();
+  setActiveView(view, targetId, false);
+}
+
+function getViewFromHash() {
+  const hash = window.location.hash.replace("#", "");
+  const target = hash ? document.getElementById(hash) : null;
+  const view = target?.dataset?.view || target?.closest("[data-view]")?.dataset?.view || "inicio";
+  return {
+    view: appViews[view] ? view : "inicio",
+    targetId: target ? hash : appViews[appViews[view] ? view : "inicio"].defaultTarget,
+  };
+}
+
+function setActiveView(view = "inicio", targetId = "", updateHash = false) {
+  if (!appViews[view]) view = "inicio";
+  currentView = view;
+  document.body.dataset.currentView = view;
+
+  document.querySelectorAll(".app-section[data-view]").forEach((section) => {
+    section.hidden = section.dataset.view !== view;
+  });
+
+  document.querySelectorAll(".mixed-tab-section").forEach((section) => {
+    const views = String(section.dataset.views || "").split(/\s+/).filter(Boolean);
+    const shouldShowSection = views.includes(view);
+    section.hidden = !shouldShowSection;
+
+    if (!shouldShowSection) return;
+
+    const visibleItems = [];
+    section.querySelectorAll("[data-tab-item]").forEach((item) => {
+      const shouldShowItem = item.dataset.view === view;
+      item.hidden = !shouldShowItem;
+      if (shouldShowItem) visibleItems.push(item);
+    });
+
+    section.classList.toggle("single-tab-item", visibleItems.length <= 1);
+  });
+
+  document.querySelectorAll(".menu-link[data-main-nav], .menu-sublink[data-main-nav]").forEach((link) => {
+    link.classList.toggle("active", link.dataset.view === view);
+  });
+
+  if (elements.appPageTitle) elements.appPageTitle.textContent = appViews[view].title;
+
+  const nextTargetId = targetId || appViews[view].defaultTarget;
+  if (updateHash && nextTargetId) {
+    history.replaceState(null, "", `#${nextTargetId}`);
+  }
+
+  if (nextTargetId) {
+    requestAnimationFrame(() => {
+      const target = document.getElementById(nextTargetId);
+      if (target && !target.hidden) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  }
 }
 
 function persistTransactions() {
@@ -1195,6 +1315,9 @@ function render() {
   const currentBudget = budgets[elements.monthFilter.value] || 0;
 
   renderSummary(totals, currentBudget);
+  renderTodayPlan(monthlyTransactions, totals, currentBudget);
+  renderMonthForecast(monthlyTransactions, totals, currentBudget);
+  renderMonthVillains(monthlyTransactions, totals, currentBudget);
   renderBudget(totals, currentBudget);
   renderCategoryReport(monthlyTransactions, totals.expense);
   renderPaymentCenter(monthlyTransactions);
@@ -1218,6 +1341,588 @@ function renderSummary(totals, budget) {
 
   elements.balanceHint.textContent = balance >= 0 ? "Você fechou positivo até agora" : "Atenção: despesas acima das receitas";
   elements.dailyHint.textContent = budget > 0 ? `${daysLeft} dia(s) restantes no mês` : "Defina limite para calcular melhor";
+}
+
+
+function renderTodayPlan(monthlyTransactions, totals, budget) {
+  if (!elements.todayPlanList) return;
+
+  const expenses = monthlyTransactions.filter((item) => item.type === "expense");
+  const pending = expenses.filter((item) => !isTransactionPaid(item));
+  const overdue = pending.filter((item) => isTransactionOverdue(item)).sort(sortByDateAsc);
+  const dueSoon = pending
+    .filter((item) => !isTransactionOverdue(item) && getDaysUntil(item.date) >= 0 && getDaysUntil(item.date) <= 5)
+    .sort(sortByDateAsc);
+  const balance = totals.income - totals.expense;
+  const remainingBudget = budget > 0 ? budget - totals.expense : balance;
+  const daysLeft = getDaysLeftInSelectedMonth();
+  const dailyLimit = daysLeft > 0 ? Math.max(0, remainingBudget / daysLeft) : Math.max(0, remainingBudget);
+  const topCategory = getTopExpenseCategory(expenses);
+  const goalAlerts = getCategoryGoalAlerts(monthlyTransactions);
+  const score = calculateFinancialHealthScore({ totals, budget, balance, expenses, pending, overdue, dueSoon, goalAlerts });
+  const action = getBestTodayAction({ totals, budget, remainingBudget, dailyLimit, topCategory, goalAlerts, overdue, dueSoon, pending });
+  const planItems = buildTodayPlanItems({ totals, budget, remainingBudget, dailyLimit, topCategory, goalAlerts, overdue, dueSoon, pending, daysLeft });
+
+  if (elements.todayPlanMonthLabel) elements.todayPlanMonthLabel.textContent = formatMonthLabel(elements.monthFilter.value);
+  if (elements.todayPlanMainAction) elements.todayPlanMainAction.textContent = action.title;
+  if (elements.todayPlanMainDetail) elements.todayPlanMainDetail.textContent = action.detail;
+  if (elements.todayPlanScore) elements.todayPlanScore.textContent = String(score);
+  if (elements.todayPlanScoreLabel) elements.todayPlanScoreLabel.textContent = getFinancialHealthLabel(score);
+  if (elements.todayPlanScoreBar) {
+    elements.todayPlanScoreBar.style.width = `${score}%`;
+    elements.todayPlanScoreBar.className = `score-bar ${getFinancialHealthClass(score)}`;
+  }
+
+  elements.todayPlanList.innerHTML = planItems
+    .map(
+      (item) => `
+        <article class="today-plan-item ${escapeHtml(item.type)}">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(item.value)}</strong>
+          <small>${escapeHtml(item.detail)}</small>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function getBestTodayAction({ totals, budget, remainingBudget, dailyLimit, topCategory, goalAlerts, overdue, dueSoon, pending }) {
+  if (totals.income === 0 && totals.expense === 0 && budget <= 0) {
+    return {
+      title: "Defina seu limite mensal e registre a primeira movimentacao.",
+      detail: "Com esses dois dados, o app passa a calcular seu plano diario automaticamente.",
+    };
+  }
+
+  if (overdue.length) {
+    const total = overdue.reduce((sum, item) => sum + item.amount, 0);
+    return {
+      title: `Resolva ${overdue.length} conta(s) atrasada(s) hoje.`,
+      detail: `Prioridade maxima: ${formatCurrency(total)} em pendencias vencidas. Pague, renegocie ou marque como pago se ja quitou.`,
+    };
+  }
+
+  if (goalAlerts.length) {
+    const first = goalAlerts[0];
+    return {
+      title: `Controle a categoria ${first.category} agora.`,
+      detail: `Ela passou ${formatCurrency(first.over)} da meta. Evite novos gastos nessa categoria ate revisar o mes.`,
+    };
+  }
+
+  if (budget > 0 && remainingBudget < 0) {
+    return {
+      title: "Congele gastos variaveis ate reorganizar o mes.",
+      detail: `Seu limite foi ultrapassado em ${formatCurrency(Math.abs(remainingBudget))}. Foque apenas no essencial ate ajustar o plano.`,
+    };
+  }
+
+  if (dueSoon.length) {
+    const total = dueSoon.reduce((sum, item) => sum + item.amount, 0);
+    return {
+      title: `Separe ${formatCurrency(total)} para contas a vencer.`,
+      detail: `${dueSoon.length} conta(s) vencem nos proximos 5 dias. Organize o pagamento antes que virem atraso.`,
+    };
+  }
+
+  if (budget > 0) {
+    return {
+      title: `Mantenha o teto diario de ${formatCurrency(dailyLimit)}.`,
+      detail: topCategory ? `A categoria que mais pesa agora e ${topCategory.category}. Use esse dado para decidir onde cortar primeiro.` : "Seu mes esta sob controle. Continue registrando tudo para manter a previsao correta.",
+    };
+  }
+
+  if (pending.length) {
+    return {
+      title: "Revise suas contas pendentes antes de gastar mais.",
+      detail: `${pending.length} despesa(s) ainda nao foram marcadas como pagas neste mes.`,
+    };
+  }
+
+  return {
+    title: "Continue registrando tudo e acompanhe o saldo diariamente.",
+    detail: "Seu controle melhora quando receitas, despesas fixas e parcelas ficam sempre atualizadas.",
+  };
+}
+
+function buildTodayPlanItems({ totals, budget, remainingBudget, dailyLimit, topCategory, goalAlerts, overdue, dueSoon, pending, daysLeft }) {
+  const items = [];
+
+  items.push({
+    type: budget > 0 && remainingBudget < 0 ? "danger" : "success",
+    label: "Disponivel por dia",
+    value: formatCurrency(dailyLimit),
+    detail: budget > 0 ? `${daysLeft} dia(s) restantes no mes.` : "Defina um limite mensal para melhorar esta previsao.",
+  });
+
+  items.push({
+    type: overdue.length ? "danger" : dueSoon.length ? "warning" : "success",
+    label: "Pagamentos",
+    value: overdue.length ? `${overdue.length} atrasada(s)` : dueSoon.length ? `${dueSoon.length} a vencer` : "Sem alerta grave",
+    detail: pending.length ? `${pending.length} despesa(s) pendente(s) no mes.` : "Todas as despesas do mes estao marcadas como pagas.",
+  });
+
+  items.push({
+    type: goalAlerts.length ? "danger" : topCategory ? "neutral" : "success",
+    label: "Categoria critica",
+    value: goalAlerts.length ? goalAlerts[0].category : topCategory ? topCategory.category : "Sem gastos",
+    detail: goalAlerts.length
+      ? `Acima da meta em ${formatCurrency(goalAlerts[0].over)}.`
+      : topCategory
+        ? `${formatCurrency(topCategory.value)} concentrados nesta categoria.`
+        : "Ainda nao ha despesas no mes selecionado.",
+  });
+
+  items.push({
+    type: totals.income - totals.expense < 0 ? "danger" : "success",
+    label: "Resultado do mes",
+    value: formatCurrency(totals.income - totals.expense),
+    detail: budget > 0 ? `${formatCurrency(Math.max(0, remainingBudget))} ainda dentro do limite.` : "Receitas menos despesas registradas.",
+  });
+
+  return items;
+}
+
+function calculateFinancialHealthScore({ totals, budget, balance, expenses, pending, overdue, dueSoon, goalAlerts }) {
+  if (totals.income === 0 && totals.expense === 0 && budget <= 0) return 0;
+
+  let score = 100;
+
+  if (budget > 0) {
+    const usage = totals.expense / budget;
+    if (usage >= 1) score -= Math.min(40, 20 + (usage - 1) * 40);
+    else if (usage >= 0.85) score -= 12;
+    else if (usage >= 0.7) score -= 6;
+  } else if (expenses.length) {
+    score -= 8;
+  }
+
+  if (balance < 0) score -= 20;
+  score -= Math.min(24, overdue.length * 8);
+  score -= Math.min(12, dueSoon.length * 3);
+  score -= Math.min(24, goalAlerts.length * 8);
+  if (pending.length === 0 && expenses.length) score += 5;
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function getCategoryGoalAlerts(monthlyTransactions) {
+  const month = elements.monthFilter.value;
+  const goals = categoryGoals[month] || {};
+  const spentByCategory = monthlyTransactions
+    .filter((item) => item.type === "expense")
+    .reduce((acc, item) => {
+      acc[item.category] = (acc[item.category] || 0) + item.amount;
+      return acc;
+    }, {});
+
+  return Object.entries(goals)
+    .map(([category, goal]) => {
+      const spent = spentByCategory[category] || 0;
+      return { category, goal, spent, over: spent - goal };
+    })
+    .filter((item) => item.goal > 0 && item.over > 0)
+    .sort((a, b) => b.over - a.over);
+}
+
+function getFinancialHealthLabel(score) {
+  if (score >= 85) return "Mes saudavel";
+  if (score >= 70) return "Atencao leve";
+  if (score >= 45) return "Risco moderado";
+  if (score > 0) return "Alerta vermelho";
+  return "Sem dados suficientes";
+}
+
+function getFinancialHealthClass(score) {
+  if (score >= 85) return "good";
+  if (score >= 70) return "attention";
+  if (score >= 45) return "risk";
+  return "danger";
+}
+
+function renderMonthForecast(monthlyTransactions, totals, budget) {
+  if (!elements.forecastScenarioList) return;
+
+  const expenses = monthlyTransactions.filter((item) => item.type === "expense");
+  const monthInfo = getSelectedMonthProgress();
+  const currentMonth = elements.monthFilter.value;
+  const expenseSoFar = totals.expense;
+  const incomeSoFar = totals.income;
+  const elapsedDays = Math.max(1, monthInfo.elapsedDays);
+  const remainingDays = Math.max(0, monthInfo.remainingDays);
+  const currentPace = expenseSoFar > 0 ? expenseSoFar / elapsedDays : 0;
+  const projectedExpense = monthInfo.isFutureMonth
+    ? expenseSoFar
+    : monthInfo.isPastMonth
+      ? expenseSoFar
+      : Math.max(expenseSoFar, currentPace * monthInfo.daysInMonth);
+  const projectedBalance = incomeSoFar - projectedExpense;
+  const budgetProjection = budget > 0 ? budget - projectedExpense : null;
+  const recommendedDaily = remainingDays > 0
+    ? Math.max(0, (budget > 0 ? budget - expenseSoFar : incomeSoFar - expenseSoFar) / remainingDays)
+    : 0;
+  const projectedDailyLimit = remainingDays > 0 ? Math.max(0, (incomeSoFar - expenseSoFar) / remainingDays) : 0;
+  const status = getForecastStatus({ budget, budgetProjection, projectedBalance, monthInfo });
+  const scenarios = buildForecastScenarios({
+    budget,
+    budgetProjection,
+    projectedBalance,
+    projectedExpense,
+    currentPace,
+    recommendedDaily,
+    projectedDailyLimit,
+    remainingDays,
+    monthInfo,
+    currentMonth,
+  });
+
+  if (elements.forecastMonthLabel) elements.forecastMonthLabel.textContent = formatMonthLabel(currentMonth);
+  if (elements.forecastStatus) elements.forecastStatus.textContent = status.label;
+  if (elements.forecastProjectedBalance) elements.forecastProjectedBalance.textContent = formatCurrency(projectedBalance);
+  if (elements.forecastCurrentPace) elements.forecastCurrentPace.textContent = `${formatCurrency(currentPace)}/dia`;
+  if (elements.forecastRecommendedDaily) elements.forecastRecommendedDaily.textContent = `${formatCurrency(recommendedDaily)}/dia`;
+  if (elements.forecastAlert) elements.forecastAlert.textContent = status.detail;
+  if (elements.forecastProjectedBalance) {
+    elements.forecastProjectedBalance.className = projectedBalance < 0 ? "forecast-negative" : "forecast-positive";
+  }
+
+  elements.forecastScenarioList.innerHTML = scenarios
+    .map(
+      (item) => `
+        <article class="forecast-scenario ${escapeHtml(item.type)}">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(item.value)}</strong>
+          <small>${escapeHtml(item.detail)}</small>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function buildForecastScenarios({ budget, budgetProjection, projectedBalance, projectedExpense, currentPace, recommendedDaily, projectedDailyLimit, remainingDays, monthInfo }) {
+  if (monthInfo.isFutureMonth && projectedExpense === 0) {
+    return [
+      {
+        type: "neutral",
+        label: "Mês futuro",
+        value: "Sem ritmo ainda",
+        detail: "Quando o mês começar, o app passa a calcular a previsão pelo ritmo real de gastos.",
+      },
+      {
+        type: budget > 0 ? "success" : "warning",
+        label: "Limite planejado",
+        value: budget > 0 ? formatCurrency(budget) : "Não definido",
+        detail: budget > 0 ? "Esse será o teto de gastos usado na previsão." : "Defina um limite para ter uma recomendação diária.",
+      },
+      {
+        type: "neutral",
+        label: "Recomendação",
+        value: "Planejar fixas",
+        detail: "Cadastre despesas fixas antes do mês virar para melhorar a previsão desde o primeiro dia.",
+      },
+    ];
+  }
+
+  const scenarios = [
+    {
+      type: projectedBalance < 0 ? "danger" : "success",
+      label: "Cenário atual",
+      value: projectedBalance < 0 ? `${formatCurrency(Math.abs(projectedBalance))} negativo` : `${formatCurrency(projectedBalance)} positivo`,
+      detail: `Mantendo o ritmo de ${formatCurrency(currentPace)}/dia, esta é a tendência de fechamento.`,
+    },
+  ];
+
+  if (budget > 0) {
+    scenarios.push({
+      type: budgetProjection < 0 ? "danger" : budgetProjection < budget * 0.15 ? "warning" : "success",
+      label: "Limite do mês",
+      value: budgetProjection < 0 ? `${formatCurrency(Math.abs(budgetProjection))} acima` : `${formatCurrency(budgetProjection)} de folga`,
+      detail: budgetProjection < 0 ? "O ritmo atual indica estouro do limite mensal." : "Previsão de quanto deve sobrar dentro do limite.",
+    });
+  } else {
+    scenarios.push({
+      type: "warning",
+      label: "Limite do mês",
+      value: "Não definido",
+      detail: "Defina um limite mensal para o app prever estouro ou sobra do orçamento.",
+    });
+  }
+
+  scenarios.push({
+    type: recommendedDaily <= 0 ? "danger" : recommendedDaily < currentPace ? "warning" : "success",
+    label: "Cenário recomendado",
+    value: remainingDays > 0 ? `${formatCurrency(recommendedDaily)}/dia` : "Mês encerrado",
+    detail: remainingDays > 0
+      ? budget > 0
+        ? "Teto diário sugerido para terminar dentro do limite."
+        : `Sem limite definido, use ${formatCurrency(projectedDailyLimit)}/dia como referência para não fechar negativo.`
+      : "Não há dias restantes no mês selecionado.",
+  });
+
+  return scenarios;
+}
+
+function getForecastStatus({ budget, budgetProjection, projectedBalance, monthInfo }) {
+  if (monthInfo.isFutureMonth) {
+    return {
+      label: "Previsão aguardando início do mês",
+      detail: "O mês selecionado ainda não começou. Cadastre despesas fixas e limite para preparar a previsão.",
+    };
+  }
+
+  if (budget > 0 && budgetProjection < 0) {
+    return {
+      label: "Alerta de estouro do limite",
+      detail: `Se continuar nesse ritmo, você deve ultrapassar o limite em ${formatCurrency(Math.abs(budgetProjection))}.`,
+    };
+  }
+
+  if (projectedBalance < 0) {
+    return {
+      label: "Alerta de fechamento negativo",
+      detail: `A tendência atual indica fechar o mês ${formatCurrency(Math.abs(projectedBalance))} negativo.`,
+    };
+  }
+
+  if (budget > 0) {
+    return {
+      label: "Tendência sob controle",
+      detail: `Mantendo esse ritmo, a previsão é fechar dentro do limite com ${formatCurrency(Math.max(0, budgetProjection))} de folga.`,
+    };
+  }
+
+  return {
+    label: "Tendência positiva",
+    detail: "Há saldo projetado positivo, mas definir um limite mensal deixará a previsão mais precisa.",
+  };
+}
+
+function getSelectedMonthProgress() {
+  const [year, monthNumber] = String(elements.monthFilter.value || formatMonth(new Date())).split("-").map(Number);
+  const today = new Date();
+  const monthIndex = monthNumber - 1;
+  const daysInMonth = new Date(year, monthNumber, 0).getDate();
+  const selectedStart = new Date(year, monthIndex, 1);
+  const selectedEnd = new Date(year, monthIndex, daysInMonth);
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === monthIndex;
+  const isPastMonth = selectedEnd < todayStart;
+  const isFutureMonth = selectedStart > todayStart;
+
+  let elapsedDays = daysInMonth;
+  let remainingDays = 0;
+
+  if (isCurrentMonth) {
+    elapsedDays = Math.max(1, today.getDate());
+    remainingDays = Math.max(1, daysInMonth - today.getDate() + 1);
+  } else if (isFutureMonth) {
+    elapsedDays = 0;
+    remainingDays = daysInMonth;
+  }
+
+  return { year, monthNumber, daysInMonth, elapsedDays, remainingDays, isCurrentMonth, isPastMonth, isFutureMonth };
+}
+
+
+function renderMonthVillains(monthlyTransactions, totals, budget) {
+  if (!elements.villainsList) return;
+
+  const expenses = monthlyTransactions.filter((item) => item.type === "expense");
+  const pending = expenses.filter((item) => !isTransactionPaid(item));
+  const overdue = pending.filter((item) => isTransactionOverdue(item)).sort(sortByDateAsc);
+  const dueSoon = pending
+    .filter((item) => !isTransactionOverdue(item) && getDaysUntil(item.date) >= 0 && getDaysUntil(item.date) <= 5)
+    .sort(sortByDateAsc);
+  const biggestExpense = [...expenses].sort((a, b) => b.amount - a.amount)[0] || null;
+  const topCategory = getTopExpenseCategory(expenses);
+  const goalAlerts = getCategoryGoalAlerts(monthlyTransactions);
+  const heaviestFixed = getHeaviestFixedExpense(monthlyTransactions);
+  const urgentBill = overdue[0] || dueSoon[0] || pending.sort(sortByDateAsc)[0] || null;
+  const installmentImpact = getMostRelevantInstallmentImpact(elements.monthFilter.value);
+  const villains = buildMonthVillainCards({
+    biggestExpense,
+    topCategory,
+    goalAlerts,
+    heaviestFixed,
+    urgentBill,
+    installmentImpact,
+    totals,
+    budget,
+  });
+
+  if (elements.villainsMonthLabel) elements.villainsMonthLabel.textContent = formatMonthLabel(elements.monthFilter.value);
+
+  elements.villainsList.innerHTML = villains
+    .map(
+      (item) => `
+        <article class="villain-card ${escapeHtml(item.type)}">
+          <div class="villain-icon" aria-hidden="true">${escapeHtml(item.icon)}</div>
+          <div class="villain-content">
+            <span>${escapeHtml(item.label)}</span>
+            <strong>${escapeHtml(item.value)}</strong>
+            <small>${escapeHtml(item.detail)}</small>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function buildMonthVillainCards({ biggestExpense, topCategory, goalAlerts, heaviestFixed, urgentBill, installmentImpact, totals, budget }) {
+  const totalExpense = totals.expense || 0;
+  const topCategoryPercent = topCategory && totalExpense > 0 ? Math.round((topCategory.value / totalExpense) * 100) : 0;
+  const categoryAlert = topCategory ? goalAlerts.find((item) => item.category === topCategory.category) : null;
+
+  return [
+    biggestExpense
+      ? {
+          type: getBigExpenseImpactClass(biggestExpense.amount, totals, budget),
+          icon: "!",
+          label: "Maior gasto individual",
+          value: `${biggestExpense.title} · ${formatCurrency(biggestExpense.amount)}`,
+          detail: `${escapeDateLabel(biggestExpense.date)} em ${biggestExpense.category}. Revise se foi essencial ou recorrente.`,
+        }
+      : {
+          type: "neutral",
+          icon: "-",
+          label: "Maior gasto individual",
+          value: "Sem gastos no mês",
+          detail: "Assim que houver despesas, o app destaca o maior impacto individual.",
+        },
+    topCategory
+      ? {
+          type: categoryAlert ? "danger" : topCategoryPercent >= 45 ? "warning" : "neutral",
+          icon: "%",
+          label: "Categoria que mais pesou",
+          value: `${topCategory.category} · ${formatCurrency(topCategory.value)}`,
+          detail: categoryAlert
+            ? `${topCategoryPercent}% dos gastos e ${formatCurrency(categoryAlert.over)} acima da meta.`
+            : `${topCategoryPercent}% de todas as despesas do mês. É o primeiro lugar para procurar economia.`,
+        }
+      : {
+          type: "neutral",
+          icon: "%",
+          label: "Categoria que mais pesou",
+          value: "Sem categoria crítica",
+          detail: "Registre despesas para identificar onde o dinheiro está concentrado.",
+        },
+    heaviestFixed
+      ? {
+          type: budget > 0 && heaviestFixed.amount > budget * 0.3 ? "warning" : "neutral",
+          icon: "F",
+          label: "Despesa fixa mais pesada",
+          value: `${heaviestFixed.title} · ${formatCurrency(heaviestFixed.amount)}`,
+          detail: heaviestFixed.detail,
+        }
+      : {
+          type: "neutral",
+          icon: "F",
+          label: "Despesa fixa mais pesada",
+          value: "Nenhuma fixa cadastrada",
+          detail: "Cadastre aluguel, internet, escola e outras fixas para melhorar a previsão.",
+        },
+    urgentBill
+      ? {
+          type: isTransactionOverdue(urgentBill) ? "danger" : getDaysUntil(urgentBill.date) <= 5 ? "warning" : "neutral",
+          icon: "R$",
+          label: "Conta mais urgente",
+          value: `${urgentBill.title} · ${formatCurrency(urgentBill.amount)}`,
+          detail: `${getPaymentTimingLabel(urgentBill)}. Marque como paga, pague ou renegocie para limpar a pendência.`,
+        }
+      : {
+          type: "success",
+          icon: "✓",
+          label: "Conta mais urgente",
+          value: "Sem pendência urgente",
+          detail: "Não há despesas pendentes relevantes no mês selecionado.",
+        },
+    installmentImpact
+      ? {
+          type: installmentImpact.remainingAmount > Math.max(1, totalExpense) * 0.35 ? "warning" : "neutral",
+          icon: "P",
+          label: "Parcela que mais compromete",
+          value: `${installmentImpact.title} · ${formatCurrency(installmentImpact.remainingAmount)}`,
+          detail: `Faltam ${installmentImpact.remainingCount} parcela(s). Próxima: ${installmentImpact.nextDateLabel}.`,
+        }
+      : {
+          type: "neutral",
+          icon: "P",
+          label: "Parcela que mais compromete",
+          value: "Sem parcelas futuras",
+          detail: "Compras parceladas aparecerão aqui quando houver valores pendentes.",
+        },
+  ];
+}
+
+function getBigExpenseImpactClass(amount, totals, budget) {
+  if (budget > 0 && amount >= budget * 0.25) return "danger";
+  if (totals.expense > 0 && amount >= totals.expense * 0.35) return "warning";
+  return "neutral";
+}
+
+function getHeaviestFixedExpense(monthlyTransactions) {
+  const fixedFromCatalog = [...fixedExpenses].sort((a, b) => b.amount - a.amount)[0];
+  if (fixedFromCatalog) {
+    return {
+      title: fixedFromCatalog.title,
+      amount: fixedFromCatalog.amount,
+      detail: `${fixedFromCatalog.category} · todo dia ${fixedFromCatalog.day}. Compare se ainda cabe no padrão de vida atual.`,
+    };
+  }
+
+  const fixedFromTransactions = monthlyTransactions
+    .filter((item) => item.type === "expense" && item.fixedExpenseId)
+    .sort((a, b) => b.amount - a.amount)[0];
+
+  if (!fixedFromTransactions) return null;
+
+  return {
+    title: fixedFromTransactions.title,
+    amount: fixedFromTransactions.amount,
+    detail: `${fixedFromTransactions.category} · lançamento fixo automático em ${escapeDateLabel(fixedFromTransactions.date)}.`,
+  };
+}
+
+function getMostRelevantInstallmentImpact(month) {
+  const monthStart = `${month}-01`;
+  const grouped = transactions
+    .filter((item) => item.type === "expense" && item.installmentGroupId)
+    .reduce((acc, item) => {
+      const key = item.installmentGroupId;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item);
+      return acc;
+    }, {});
+
+  const groups = Object.values(grouped)
+    .map((items) => {
+      const pendingItems = items
+        .filter((item) => String(item.date || "") >= monthStart && !isTransactionPaid(item))
+        .sort(sortByDateAsc);
+      if (!pendingItems.length) return null;
+      const remainingAmount = pendingItems.reduce((sum, item) => sum + item.amount, 0);
+      const first = pendingItems[0];
+      return {
+        title: getInstallmentBaseTitle(first.title),
+        remainingAmount,
+        remainingCount: pendingItems.length,
+        nextDateLabel: escapeDateLabel(first.date),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.remainingAmount - a.remainingAmount);
+
+  return groups[0] || null;
+}
+
+function getInstallmentBaseTitle(title) {
+  return String(title || "Compra parcelada")
+    .replace(/\s*\(\d+\/\d+\)\s*$/g, "")
+    .trim() || "Compra parcelada";
+}
+
+function escapeDateLabel(dateValue) {
+  return dateValue ? formatDisplayDate(dateValue) : "sem data";
 }
 
 function renderBudget(totals, budget) {
