@@ -19,7 +19,7 @@
         </div>
         <p class="eyebrow">Acesso seguro</p>
         <h1>Entre na sua conta</h1>
-        <p class="auth-copy">Use nome e senha. Novas contas entram como pendentes e só são liberadas pelo administrador tata.</p>
+        <p class="auth-copy">Use nome e senha. Novas contas entram como pendentes e só são liberadas pelo administrador.</p>
 
         <form id="authForm" class="auth-form" autocomplete="on">
           <label class="field">
@@ -51,14 +51,32 @@
           </div>
         </div>
 
-        <nav class="menu" aria-label="Seções">
-          <a href="#dashboard" class="menu-link active">Dashboard</a>
-          <a href="#lancamentos" class="menu-link">Lançamentos</a>
-          <a href="#planejamento" class="menu-link">Planejamento</a>
-          <a href="#despesas-fixas" class="menu-link">Despesas fixas</a>
-          <a href="#metas" class="menu-link">Metas</a>
+        <nav class="menu tree-menu" aria-label="Seções">
+          <a href="#inicio" class="menu-link active" data-view="inicio" data-main-nav="true">Início</a>
+
+          <details class="menu-tree-group" open>
+            <summary>Diagnóstico</summary>
+            <a href="#plano-hoje" class="menu-sublink" data-view="inicio" data-scroll-target="plano-hoje">Plano de hoje</a>
+            <a href="#previsao-fechamento" class="menu-sublink" data-view="inicio" data-scroll-target="previsao-fechamento">Previsão</a>
+            <a href="#viloes-mes" class="menu-sublink" data-view="diagnostico" data-main-nav="true" data-scroll-target="viloes-mes">Vilões do mês</a>
+          </details>
+
+          <details class="menu-tree-group" open>
+            <summary>Lançamentos</summary>
+            <a href="#lancamentos" class="menu-sublink" data-view="lancamentos" data-main-nav="true" data-scroll-target="lancamentos">Novo lançamento</a>
+            <a href="#historico" class="menu-sublink" data-view="lancamentos" data-scroll-target="historico">Histórico</a>
+          </details>
+
+          <details class="menu-tree-group" open>
+            <summary>Planejamento</summary>
+            <a href="#planejamento" class="menu-sublink" data-view="planejamento" data-main-nav="true" data-scroll-target="planejamento">Limite mensal</a>
+            <a href="#metas" class="menu-sublink" data-view="planejamento" data-scroll-target="metas">Metas</a>
+            <a href="#despesas-fixas" class="menu-sublink" data-view="planejamento" data-scroll-target="despesas-fixas">Despesas fixas</a>
+          </details>
+
+          <a href="#central-pendencias" class="menu-link" data-view="pendencias" data-main-nav="true" data-scroll-target="central-pendencias">Pendências</a>
+          <a href="#relatorios" class="menu-link" data-view="relatorios" data-main-nav="true" data-scroll-target="relatorios">Relatórios</a>
           <a href="admin.html" class="menu-link admin-only" id="adminMenuLink" hidden>Administração</a>
-          <a href="#relatorios" class="menu-link">Relatórios</a>
         </nav>
 
         <div class="sidebar-card">
@@ -72,7 +90,7 @@
         <header class="topbar">
           <div>
             <p class="eyebrow">Organização financeira pessoal</p>
-            <h1>Resumo do mês</h1>
+            <h1 id="appPageTitle">Resumo do mês</h1>
           </div>
           <div class="topbar-actions">
             <div class="user-pill">
@@ -86,7 +104,7 @@
           </div>
         </header>
 
-        <section class="summary-grid" id="dashboard" aria-label="Resumo financeiro">
+        <section class="summary-grid app-section" id="dashboard" data-view="inicio" aria-label="Resumo financeiro">
           <article class="summary-card primary">
             <span>Saldo do mês</span>
             <strong id="balanceValue">R$ 0,00</strong>
@@ -109,7 +127,88 @@
           </article>
         </section>
 
-        <section class="panel payment-center" id="central-pendencias" aria-label="Central de pendências">
+        <section class="panel today-plan-panel app-section" id="plano-hoje" data-view="inicio" aria-label="Seu plano de hoje">
+          <div class="panel-header today-plan-header">
+            <div>
+              <p class="eyebrow">Orientação inteligente</p>
+              <h2>Seu plano de hoje</h2>
+            </div>
+            <span class="status-pill status-active" id="todayPlanMonthLabel">Mês selecionado</span>
+          </div>
+
+          <div class="today-plan-grid">
+            <article class="today-plan-main">
+              <span class="today-plan-kicker">Próxima melhor ação</span>
+              <strong id="todayPlanMainAction">Carregando plano...</strong>
+              <p id="todayPlanMainDetail">Assim que houver dados, o app indica a decisão financeira mais importante do momento.</p>
+            </article>
+
+            <article class="financial-score-card" aria-label="Saúde financeira do mês">
+              <span>Saúde financeira</span>
+              <strong id="todayPlanScore">0</strong>
+              <small id="todayPlanScoreLabel">Sem dados suficientes</small>
+              <div class="score-track" aria-hidden="true">
+                <div class="score-bar" id="todayPlanScoreBar"></div>
+              </div>
+            </article>
+          </div>
+
+          <div class="today-plan-list" id="todayPlanList">
+            <p class="muted">Carregando recomendações...</p>
+          </div>
+        </section>
+
+        <section class="panel forecast-panel app-section" id="previsao-fechamento" data-view="inicio" aria-label="Previsão de fechamento do mês">
+          <div class="panel-header forecast-header">
+            <div>
+              <p class="eyebrow">Previsão inteligente</p>
+              <h2>Previsão de fechamento do mês</h2>
+            </div>
+            <span class="status-pill status-active" id="forecastMonthLabel">Mês selecionado</span>
+          </div>
+
+          <div class="forecast-grid">
+            <article class="forecast-main-card">
+              <span id="forecastStatus">Calculando tendência...</span>
+              <strong id="forecastProjectedBalance">R$ 0,00</strong>
+              <p id="forecastAlert">Registre receitas e despesas para o app prever como o mês deve terminar.</p>
+            </article>
+
+            <article class="forecast-metric-card">
+              <span>Ritmo atual de gastos</span>
+              <strong id="forecastCurrentPace">R$ 0,00/dia</strong>
+              <small>Baseado nas despesas registradas até agora.</small>
+            </article>
+
+            <article class="forecast-metric-card recommended">
+              <span>Recomendado por dia</span>
+              <strong id="forecastRecommendedDaily">R$ 0,00/dia</strong>
+              <small>Para fechar o mês dentro do limite ou positivo.</small>
+            </article>
+          </div>
+
+          <div class="forecast-scenarios" id="forecastScenarioList">
+            <p class="muted">Carregando cenários...</p>
+          </div>
+        </section>
+
+        <section class="panel villains-panel app-section" id="viloes-mes" data-view="diagnostico" aria-label="Vilões do mês">
+          <div class="panel-header villains-header">
+            <div>
+              <p class="eyebrow">Diagnóstico automático</p>
+              <h2>Vilões do mês</h2>
+            </div>
+            <span class="status-pill status-pending" id="villainsMonthLabel">Mês selecionado</span>
+          </div>
+          <p class="muted villains-help">
+            Veja quais gastos, categorias, contas e parcelas estão mais comprometendo o mês selecionado.
+          </p>
+          <div class="villains-grid" id="villainsList">
+            <p class="muted">Carregando vilões do mês...</p>
+          </div>
+        </section>
+
+        <section class="panel payment-center app-section" id="central-pendencias" data-view="pendencias" aria-label="Central de pendências">
           <div class="panel-header">
             <div>
               <p class="eyebrow">Controle de pagamentos</p>
@@ -125,8 +224,8 @@
           </div>
         </section>
 
-        <section class="layout-grid">
-          <article class="panel" id="lancamentos">
+        <section class="layout-grid app-section mixed-tab-section" data-views="lancamentos planejamento">
+          <article class="panel" id="lancamentos" data-tab-item data-view="lancamentos">
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Novo registro</p>
@@ -185,7 +284,7 @@
             </form>
           </article>
 
-          <article class="panel" id="planejamento">
+          <article class="panel" id="planejamento" data-tab-item data-view="planejamento">
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Planejamento</p>
@@ -210,7 +309,7 @@
               <p id="budgetMessage">Defina um limite para visualizar seu progresso.</p>
             </div>
           </article>
-          <article class="panel" id="despesas-fixas">
+          <article class="panel" id="despesas-fixas" data-tab-item data-view="planejamento">
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Automação</p>
@@ -240,7 +339,7 @@
             <div class="mini-list" id="fixedExpenseList"></div>
           </article>
 
-          <article class="panel" id="metas">
+          <article class="panel" id="metas" data-tab-item data-view="planejamento">
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Controle por categoria</p>
@@ -263,7 +362,7 @@
 
         </section>
 
-        <section class="layout-grid reports" id="relatorios">
+        <section class="layout-grid reports app-section" id="relatorios" data-view="relatorios">
           <article class="panel chart-panel">
             <div class="panel-header">
               <div>
@@ -291,7 +390,7 @@
         </section>
 
 
-        <section class="panel transactions-panel">
+        <section class="panel transactions-panel app-section" id="historico" data-view="lancamentos">
           <div class="panel-header filters-header">
             <div>
               <p class="eyebrow">Histórico</p>
