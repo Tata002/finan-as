@@ -953,6 +953,33 @@ td {
   border-radius: 999px;
 }
 
+.scheduled-transactions {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.scheduled-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.scheduled-header h3 {
+  margin: 0;
+  letter-spacing: -0.03em;
+}
+
+.scheduled-help {
+  margin-top: 10px;
+  line-height: 1.6;
+}
+
+.scheduled-item span {
+  line-height: 1.4;
+}
+
 .select-all-control {
   display: inline-flex;
   align-items: center;
