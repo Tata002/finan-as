@@ -260,6 +260,10 @@
                 <input id="dateInput" type="date" required />
               </label>
               <label class="field checkbox-field wide">
+                <input id="scheduleToggle" type="checkbox" />
+                <span>Agendar para entrar automaticamente nesta data</span>
+              </label>
+              <label class="field checkbox-field wide">
                 <input id="installmentToggle" type="checkbox" />
                 <span>Compra parcelada no cartão</span>
               </label>
@@ -282,6 +286,22 @@
               </label>
               <button class="button primary wide" id="submitButton" type="submit">Salvar lançamento</button>
             </form>
+
+            <div class="scheduled-transactions">
+              <div class="scheduled-header">
+                <div>
+                  <p class="eyebrow">Agendamentos</p>
+                  <h3>Receitas e despesas agendadas</h3>
+                </div>
+                <span class="status-pill status-pending" id="scheduledMonthLabel">Mês selecionado</span>
+              </div>
+              <p class="muted scheduled-help">
+                Itens agendados ficam fora do saldo até a data chegar. Ao abrir o app na data agendada, eles entram como lançamentos normais.
+              </p>
+              <div class="mini-list" id="scheduledTransactionList">
+                <p class="muted">Nenhum lançamento agendado para este mês.</p>
+              </div>
+            </div>
           </article>
 
           <article class="panel" id="planejamento" data-tab-item data-view="planejamento">
