@@ -118,6 +118,9 @@ const elements = {
   installmentFields: document.querySelector("#installmentFields"),
   installmentsInput: document.querySelector("#installmentsInput"),
   installmentAmountMode: document.querySelector("#installmentAmountMode"),
+  scheduleToggle: document.querySelector("#scheduleToggle"),
+  scheduledTransactionList: document.querySelector("#scheduledTransactionList"),
+  scheduledMonthLabel: document.querySelector("#scheduledMonthLabel"),
   fixedExpenseForm: document.querySelector("#fixedExpenseForm"),
   fixedEditingId: document.querySelector("#fixedEditingId"),
   fixedTitleInput: document.querySelector("#fixedTitleInput"),
@@ -182,6 +185,7 @@ let saveTimer;
 let transactions = [];
 let budgets = {};
 let fixedExpenses = [];
+let scheduledTransactions = [];
 let categoryGoals = {};
 let selectedTransactionIds = new Set();
 let toastTimer;
@@ -212,6 +216,7 @@ function bootFirebase() {
       transactions = [];
       budgets = {};
       fixedExpenses = [];
+      scheduledTransactions = [];
       categoryGoals = {};
       currentUserProfile = null;
       selectedTransactionIds.clear();
@@ -346,6 +351,7 @@ async function loadUserData(user) {
     transactions = Array.isArray(data.transactions) ? data.transactions : [];
     budgets = data.budgets && typeof data.budgets === "object" ? data.budgets : {};
     fixedExpenses = Array.isArray(data.fixedExpenses) ? data.fixedExpenses : [];
+    scheduledTransactions = Array.isArray(data.scheduledTransactions) ? data.scheduledTransactions : [];
     categoryGoals = data.categoryGoals && typeof data.categoryGoals === "object" ? data.categoryGoals : {};
 
     if (!snapshot.exists()) await saveDataToFirebase();
@@ -376,6 +382,7 @@ async function saveDataToFirebase() {
         transactions,
         budgets,
         fixedExpenses,
+        scheduledTransactions,
         categoryGoals,
         updatedAt: serverTimestamp(),
       },
@@ -880,8 +887,22 @@ function bindEvents() {
     render();
   });
 
-  elements.typeInput.addEventListener("change", updateCategories);
+  elements.typeInput.addEventListener("change", () => {
+    updateCategories();
+    syncScheduleMode();
+  });
+
+  if (elements.scheduleToggle) {
+    elements.scheduleToggle.addEventListener("change", syncScheduleMode);
+  }
+
   elements.installmentToggle.addEventListener("change", () => {
+    if (elements.scheduleToggle?.checked) {
+      elements.installmentToggle.checked = false;
+      elements.installmentFields.hidden = true;
+      showToast("Para agendar, salve um lançamento simples. Parcelas continuam disponíveis no lançamento normal.");
+      return;
+    }
     elements.installmentFields.hidden = !elements.installmentToggle.checked;
   });
 
@@ -1035,6 +1056,10 @@ function persistFixedExpenses() {
   queueSaveData();
 }
 
+function persistScheduledTransactions() {
+  queueSaveData();
+}
+
 function persistCategoryGoals() {
   queueSaveData();
 }
@@ -1050,6 +1075,26 @@ function saveTransaction() {
 
   if (!title || !category || !date || !amount || amount <= 0) {
     showToast("Preencha descrição, categoria, valor e data corretamente.");
+    return;
+  }
+
+  if (!editingId && elements.scheduleToggle?.checked) {
+    const payload = {
+      id: createId(),
+      type,
+      title,
+      category,
+      amount,
+      date,
+      note,
+      createdAt: formatDate(new Date()),
+    };
+
+    scheduledTransactions = [payload, ...scheduledTransactions];
+    persistScheduledTransactions();
+    resetForm();
+    render();
+    showToast(`Agendamento salvo para ${formatDisplayDate(date)}.`);
     return;
   }
 
@@ -1126,6 +1171,8 @@ function editTransaction(id) {
   const item = transactions.find((transaction) => transaction.id === id);
   if (!item) return;
 
+  if (elements.scheduleToggle) elements.scheduleToggle.checked = false;
+  syncScheduleMode();
   elements.editingId.value = item.id;
   elements.typeInput.value = item.type;
   updateCategories();
@@ -1277,6 +1324,109 @@ function generateFixedExpensesForMonth(month) {
   if (created) persistTransactions();
 }
 
+function releaseScheduledTransactions() {
+  const today = formatDate(new Date());
+  const dueItems = scheduledTransactions.filter((item) => item?.date && compareDateStrings(item.date, today) <= 0);
+  if (!dueItems.length) return;
+
+  let created = 0;
+  const dueIds = new Set(dueItems.map((item) => item.id));
+
+  dueItems.forEach((scheduled) => {
+    const alreadyExists = transactions.some((transaction) => transaction.scheduledTransactionId === scheduled.id);
+    if (alreadyExists) return;
+
+    transactions.unshift({
+      id: createId(),
+      type: scheduled.type,
+      title: scheduled.title,
+      category: scheduled.category,
+      amount: scheduled.amount,
+      date: scheduled.date,
+      note: scheduled.note || "Lançamento agendado automático",
+      paid: scheduled.type === "expense" ? false : true,
+      paidAt: null,
+      scheduledTransactionId: scheduled.id,
+    });
+    created += 1;
+  });
+
+  scheduledTransactions = scheduledTransactions.filter((item) => !dueIds.has(item.id));
+  persistTransactions();
+
+  if (created) {
+    showToast(`${created} lançamento(s) agendado(s) entraram automaticamente.`);
+  }
+}
+
+function deleteScheduledTransaction(id) {
+  const item = scheduledTransactions.find((transaction) => transaction.id === id);
+  if (!item) return;
+
+  if (!confirm(`Remover o agendamento "${item.title}"?`)) return;
+
+  scheduledTransactions = scheduledTransactions.filter((transaction) => transaction.id !== id);
+  persistScheduledTransactions();
+  renderScheduledTransactions();
+  showToast("Agendamento removido.");
+}
+
+function renderScheduledTransactions() {
+  if (!elements.scheduledTransactionList) return;
+
+  const month = elements.monthFilter.value;
+  const monthItems = scheduledTransactions
+    .filter((item) => item.date?.startsWith(month))
+    .sort(sortByDateAsc);
+
+  if (elements.scheduledMonthLabel) {
+    elements.scheduledMonthLabel.textContent = formatMonthLabel(month);
+  }
+
+  if (!monthItems.length) {
+    elements.scheduledTransactionList.innerHTML = `<p class="muted">Nenhum lançamento agendado para este mês.</p>`;
+    return;
+  }
+
+  elements.scheduledTransactionList.innerHTML = monthItems.map(renderScheduledTransactionItem).join("");
+  elements.scheduledTransactionList.querySelectorAll("[data-scheduled-delete]").forEach((button) => {
+    button.addEventListener("click", () => deleteScheduledTransaction(button.dataset.scheduledDelete));
+  });
+}
+
+function renderScheduledTransactionItem(item) {
+  const typeLabel = item.type === "income" ? "Receita" : "Despesa";
+  const amountLabel = item.type === "income" ? formatCurrency(item.amount) : formatCurrency(-item.amount);
+  const timingLabel = compareDateStrings(item.date, formatDate(new Date())) <= 0 ? "entra ao abrir o app" : `entra em ${getDaysUntil(item.date)} dia(s)`;
+
+  return `
+    <div class="mini-item scheduled-item">
+      <div>
+        <strong>${escapeHtml(item.title)}</strong>
+        <span>${escapeHtml(typeLabel)} · ${escapeHtml(item.category)} · ${formatDisplayDate(item.date)} · ${amountLabel}</span>
+        ${item.note ? `<span>${escapeHtml(item.note)}</span>` : ""}
+        <span class="tag tag-warning">${escapeHtml(timingLabel)}</span>
+      </div>
+      <button class="icon-button danger" type="button" data-scheduled-delete="${escapeHtml(item.id)}">Remover</button>
+    </div>
+  `;
+}
+
+function syncScheduleMode() {
+  const scheduled = elements.scheduleToggle?.checked === true;
+
+  if (scheduled) {
+    elements.installmentToggle.checked = false;
+    elements.installmentFields.hidden = true;
+  }
+
+  elements.installmentToggle.disabled = scheduled;
+
+  if (!elements.editingId.value) {
+    elements.submitButton.textContent = scheduled ? "Salvar agendamento" : "Salvar lançamento";
+  }
+}
+
 function resetForm() {
   elements.editingId.value = "";
   elements.transactionForm.reset();
@@ -1286,10 +1436,13 @@ function resetForm() {
   elements.formTitle.textContent = "Adicionar lançamento";
   elements.submitButton.textContent = "Salvar lançamento";
   elements.cancelEditButton.hidden = true;
+  if (elements.scheduleToggle) elements.scheduleToggle.checked = false;
   elements.installmentToggle.checked = false;
+  elements.installmentToggle.disabled = false;
   elements.installmentFields.hidden = true;
   elements.installmentsInput.value = "2";
   elements.installmentAmountMode.value = "installment";
+  syncScheduleMode();
 }
 
 function updateCategories() {
@@ -1309,6 +1462,7 @@ function syncBudgetInput() {
 }
 
 function render() {
+  releaseScheduledTransactions();
   generateFixedExpensesForMonth(elements.monthFilter.value);
   const monthlyTransactions = getMonthlyTransactions();
   const totals = getTotals(monthlyTransactions);
@@ -1323,6 +1477,7 @@ function render() {
   renderPaymentCenter(monthlyTransactions);
   renderInsights(monthlyTransactions, totals, currentBudget);
   renderFixedExpenses();
+  renderScheduledTransactions();
   renderCategoryGoals(monthlyTransactions);
   renderTransactions();
 }
@@ -2344,6 +2499,7 @@ function renderTransactionRow(item) {
           <strong>${safeTitle}</strong>
           ${item.note ? `<span>${escapeHtml(item.note)}</span>` : ""}
           ${item.fixedExpenseId ? `<span class="tag">Fixa automática</span>` : ""}
+          ${item.scheduledTransactionId ? `<span class="tag">Agendado automático</span>` : ""}
           ${item.installmentGroupId ? `<span class="tag">Parcela ${item.installmentNumber}/${item.totalInstallments}</span>` : ""}
           ${paymentTags}
         </div>
